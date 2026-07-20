@@ -95,10 +95,11 @@ def test_collect_data_rejects_invalid_api_response(
     # 대상 API에는 유효하지 않은 응답을, 나머지 API에는 유효한 응답을 반환
     async def fake_fetch_response(
         client: httpx.AsyncClient,
+        source: ApiSource,
         url: str,
         params: httpx.QueryParams | None = None,
     ) -> httpx.Response:
-        del client, params
+        del client, source, params
         data = invalid_data if url == invalid_url else VALID_RESPONSES[url]
         request = httpx.Request("GET", url)
         return httpx.Response(200, json=data, request=request)

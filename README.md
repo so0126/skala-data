@@ -29,7 +29,7 @@ API별 Pandas DataFrame 변환
 CSV / Parquet 저장 및 읽기·쓰기 시간 측정
 ```
 
-세 API 요청은 `httpx.AsyncClient`와 `asyncio.gather()`를 사용해 동시에 처리합니다. 검증 실패 시 `ApiValidationError`에 실패한 API의 `ApiSource`를 함께 기록합니다.
+세 API 요청은 `httpx.AsyncClient`와 `asyncio.gather()`를 사용해 동시에 처리합니다. 요청 자체가 실패(HTTP 오류, 타임아웃)하면 `ApiRequestError`, 응답 검증에 실패하면 `ApiValidationError`가 발생하며, 두 예외 모두 공통 베이스 `ApiError`를 통해 실패한 API의 `ApiSource`를 함께 기록합니다.
 
 ## 데이터 검증
 
@@ -85,7 +85,7 @@ output/
 ## 테스트
 
 ```bash
-pytest
+PYTHONPATH=. pytest
 ```
 
 가짜 API 응답을 사용해 다음 검증 실패를 테스트합니다.

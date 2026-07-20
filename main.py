@@ -8,6 +8,7 @@
  - 2026-07-20: API 검증 실패 시 로그 남기고 종료하도록 예외 처리 추가
  - 2026-07-20: 수집 결과를 API별 DataFrame으로 출력하도록 변경
  - 2026-07-20: CSV/Parquet 저장 및 API별 읽기/쓰기 시간 합계 측정 기능 추가
+ - 2026-07-20: 검증 실패뿐 아니라 HTTP 오류/타임아웃도 ApiError로 함께 처리하도록 변경
 
 """
 
@@ -16,7 +17,7 @@ import logging
 import sys
 from pathlib import Path
 
-from collector import ApiValidationError, collect_data
+from collector import ApiError, collect_data
 from storage import (
     country_dataframe,
     location_dataframe,
@@ -33,8 +34,8 @@ async def main() -> None:
     # API 데이터가 모델과 맞지 않을 경우 종료
     try:
         collected = await collect_data()
-    except ApiValidationError as e:
-        logger.error("[%s] 데이터 검증 실패: %s", e.source.value, e.error)
+    except ApiError as e:
+        logger.error("[%s] %s", e.source.value, e)
         sys.exit(1)
 
     # 각 API 응답을 dataframe으로 출력
