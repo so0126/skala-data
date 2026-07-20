@@ -1,4 +1,8 @@
 .venv/
 __pycache__/
 .env
-.*py[cod]
+*.py[cod]
+.ruff_cache
+output/
+.pytest_cache/
+tests/__pycache__
