@@ -1,9 +1,9 @@
 """
-API별 유효하지 않은 응답이 ApiValidationError를 발생시키고,
-실패 출처가 정확한 ApiSource로 표시되는지 확인하는 테스트
+collector 모듈의 정상 API 수집과 응답 검증 실패 처리를 확인하는 테스트
 작성자: 박소영
 변경 이력:
   - 2026-07-20: API별 유효하지 않은 응답의 검증 실패 출처 테스트 생성
+  - 2026-07-20: 정상 응답 및 시간대별 배열 길이 검증 테스트 추가
 
 """
 
@@ -19,7 +19,9 @@ from collector import (
     ApiSource,
     ApiValidationError,
     collect_data,
+    validate_response,
 )
+from models import Weather
 
 # 유효한 샘플 응답
 VALID_RESPONSES: dict[str, dict[str, object]] = {
@@ -110,3 +112,44 @@ def test_collect_data_rejects_invalid_api_response(
         asyncio.run(collect_data())
 
     assert error_info.value.source is expected_source
+
+
+# 정상 API 응답시 CollectedData 생성 확인 및 날씨 위도, 국가 코드, 위치 국가 코드 확인
+def test_collect_data_accepts_valid_api_responses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_fetch_response(
+        client: httpx.AsyncClient,
+        source: ApiSource,
+        url: str,
+        params: httpx.QueryParams | None = None,
+    ) -> httpx.Response:
+        del client, source, params
+        request = httpx.Request("GET", url)
+        return httpx.Response(200, json=VALID_RESPONSES[url], request=request)
+
+    monkeypatch.setattr("collector.fetch_response", fake_fetch_response)
+
+    collected = asyncio.run(collect_data())
+
+    assert collected.weather.latitude == 37.55
+    assert collected.country.alpha2_code == "KR"
+    assert collected.location.country_code == "KR"
+
+
+# 시간대별 배열 길이 검증 테스트
+def test_weather_rejects_different_hourly_lengths() -> None:
+    invalid_weather = {
+        **VALID_RESPONSES[OPEN_METEO_URL],
+        "hourly": {
+            "time": ["2026-07-20T00:00", "2026-07-20T01:00"],
+            "temperature_2m": [25.0],
+            "precipitation_probability": [30],
+        },
+    }
+
+    with pytest.raises(ApiValidationError) as error_info:
+        validate_response(ApiSource.WEATHER, Weather, invalid_weather)
+
+    assert error_info.value.source is ApiSource.WEATHER
+    assert "시간, 기온, 강수확률의 개수가 같아야 합니다" in str(error_info.value)
